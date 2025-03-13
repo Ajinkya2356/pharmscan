@@ -14,11 +14,22 @@ export const analyzeMedicineImage = async (imageData: string): Promise<GeminiAna
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     
     if (!apiKey) {
-      console.error('Gemini API key is missing');
+      console.warn('Gemini API key is missing. Using mock data for testing.');
+      
+      // Return mock data if API key is missing
       return {
-        success: false,
-        data: null,
-        message: 'API key not configured. Please set up your Gemini API key.'
+        success: true,
+        data: {
+          isImageClear: true,
+          name: "Sample Medicine (Demo Mode)",
+          description: "This is a placeholder result since the Gemini API key is not configured.",
+          ingredients: ["Demo Ingredient 1", "Demo Ingredient 2"],
+          price: "$10-15",
+          availability: "Available at most pharmacies",
+          precautions: ["Keep out of reach of children", "Store in a cool, dry place"],
+          alternatives: ["Alternative Medicine A", "Alternative Medicine B"]
+        },
+        message: 'Successfully analyzed medicine image (demo mode)'
       };
     }
 

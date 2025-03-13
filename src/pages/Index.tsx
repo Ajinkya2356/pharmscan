@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import Camera from '@/components/Camera';
 import MedicineResult, { MedicineInfo } from '@/components/MedicineResult';
@@ -18,6 +17,23 @@ const Index = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<MedicineInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [envWarning, setEnvWarning] = useState<string | null>(null);
+
+  useEffect(() => {
+    const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!geminiKey || !supabaseUrl || !supabaseKey) {
+      const missingVars = [
+        !geminiKey && 'Gemini API Key',
+        !supabaseUrl && 'Supabase URL',
+        !supabaseKey && 'Supabase Anon Key'
+      ].filter(Boolean).join(', ');
+      
+      setEnvWarning(`Missing environment variables: ${missingVars}. Some features may not work properly.`);
+    }
+  }, []);
 
   const handleStartScan = () => {
     setShowCamera(true);
@@ -30,7 +46,6 @@ const Index = () => {
     setError(null);
     
     try {
-      // Analyze the medicine image using Gemini
       const analysisResult = await analyzeMedicineImage(imageData);
       
       if (!analysisResult.success) {
@@ -47,8 +62,11 @@ const Index = () => {
           description: "We've identified your medicine.",
         });
         
-        // Save to Supabase if analysis was successful
-        await saveMedicineData(analysisResult.data);
+        try {
+          await saveMedicineData(analysisResult.data);
+        } catch (err) {
+          console.error("Failed to save to database:", err);
+        }
       }
     } catch (error) {
       console.error("Error in scanning process:", error);
@@ -75,6 +93,13 @@ const Index = () => {
       <Header />
       
       <main className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
+        {envWarning && (
+          <Alert variant="warning" className="mb-6 max-w-md">
+            <AlertTitle>Configuration Warning</AlertTitle>
+            <AlertDescription>{envWarning}</AlertDescription>
+          </Alert>
+        )}
+        
         {!showCamera ? (
           <div className="flex flex-col items-center text-center space-y-8 animate-fade-in w-full max-w-md">
             <div className="space-y-4 mb-4">
