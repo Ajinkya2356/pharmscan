@@ -94,7 +94,7 @@ const Index = () => {
       
       <main className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
         {envWarning && (
-          <Alert variant="warning" className="mb-6 max-w-md">
+          <Alert className="mb-6 max-w-md">
             <AlertTitle>Configuration Warning</AlertTitle>
             <AlertDescription>{envWarning}</AlertDescription>
           </Alert>

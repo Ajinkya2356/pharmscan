@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 
 export interface MedicineInfo {
+  isImageClear: boolean;
   name: string;
   description: string;
   ingredients: string[];
