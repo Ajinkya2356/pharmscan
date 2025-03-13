@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import Camera from '@/components/Camera';
@@ -6,6 +7,9 @@ import ScanButton from '@/components/ScanButton';
 import AnimatedTransition from '@/components/AnimatedTransition';
 import Header from '@/components/Header';
 import { ArrowLeft, Pill } from 'lucide-react';
+import { recognizeText } from '@/services/ocrService';
+import { analyzeMedicineText } from '@/services/llmService';
+import { saveMedicineData } from '@/services/supabaseService';
 
 const Index = () => {
   const { toast } = useToast();
@@ -18,46 +22,79 @@ const Index = () => {
     setShowCamera(true);
   };
 
-  const handleCapture = (imageData: string) => {
+  const handleCapture = async (imageData: string) => {
     setCapturedImage(imageData);
     setAnalyzing(true);
     
-    // Simulate API call to analyze medicine
-    setTimeout(() => {
-      // Mock data - in a real app this would come from an AI image analysis
-      const mockResult: MedicineInfo = {
-        name: "Acetaminophen 500mg",
-        description: "Pain reliever and fever reducer for temporary relief of minor aches and pains.",
-        ingredients: [
-          "Acetaminophen 500mg (active ingredient)",
-          "Corn starch",
-          "Hypromellose",
-          "Povidone",
-          "Stearic acid"
-        ],
-        price: "$8.99 - $12.49",
-        availability: "Available in most pharmacies",
-        precautions: [
-          "Do not use with other medicines containing acetaminophen",
-          "Do not take more than directed (max 4000mg daily)",
-          "Alcohol warning: May cause liver damage",
-          "Consult a doctor if symptoms persist"
-        ],
-        alternatives: [
-          "Ibuprofen 200mg",
-          "Aspirin 325mg",
-          "Naproxen Sodium 220mg"
-        ]
-      };
+    try {
+      // Step 1: Extract text using OCR
+      const extractedText = await recognizeText(imageData);
       
-      setResult(mockResult);
-      setAnalyzing(false);
+      if (!extractedText) {
+        toast({
+          title: "OCR Failed",
+          description: "Couldn't extract text from the image. Please try again with better lighting.",
+          variant: "destructive",
+        });
+        setAnalyzing(false);
+        return;
+      }
       
+      // Step 2: Analyze the extracted text using LLM
+      const medicineInfo = await analyzeMedicineText(extractedText);
+      
+      if (!medicineInfo) {
+        // Fallback to mock data if LLM analysis fails
+        const mockResult: MedicineInfo = {
+          name: "Acetaminophen 500mg",
+          description: "Pain reliever and fever reducer for temporary relief of minor aches and pains.",
+          ingredients: [
+            "Acetaminophen 500mg (active ingredient)",
+            "Corn starch",
+            "Hypromellose",
+            "Povidone",
+            "Stearic acid"
+          ],
+          price: "$8.99 - $12.49",
+          availability: "Available in most pharmacies",
+          precautions: [
+            "Do not use with other medicines containing acetaminophen",
+            "Do not take more than directed (max 4000mg daily)",
+            "Alcohol warning: May cause liver damage",
+            "Consult a doctor if symptoms persist"
+          ],
+          alternatives: [
+            "Ibuprofen 200mg",
+            "Aspirin 325mg",
+            "Naproxen Sodium 220mg"
+          ]
+        };
+        
+        setResult(mockResult);
+        toast({
+          title: "Analysis Complete (Mock Data)",
+          description: "We couldn't analyze the medicine. Showing mock data instead.",
+        });
+      } else {
+        setResult(medicineInfo);
+        toast({
+          title: "Analysis Complete",
+          description: "We've identified your medicine.",
+        });
+        
+        // Save to Supabase if analysis was successful
+        await saveMedicineData(medicineInfo);
+      }
+    } catch (error) {
+      console.error("Error in scanning process:", error);
       toast({
-        title: "Analysis Complete",
-        description: "We've identified your medicine.",
+        title: "Error",
+        description: "An error occurred during scanning. Please try again.",
+        variant: "destructive",
       });
-    }, 3000);
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   const handleBackToHome = () => {
