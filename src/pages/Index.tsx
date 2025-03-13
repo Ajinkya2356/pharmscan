@@ -7,9 +7,9 @@ import ScanButton from '@/components/ScanButton';
 import AnimatedTransition from '@/components/AnimatedTransition';
 import Header from '@/components/Header';
 import { ArrowLeft, Pill } from 'lucide-react';
-import { recognizeText } from '@/services/ocrService';
-import { analyzeMedicineText } from '@/services/llmService';
+import { analyzeMedicineImage } from '@/services/geminiService';
 import { saveMedicineData } from '@/services/supabaseService';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const Index = () => {
   const { toast } = useToast();
@@ -17,76 +17,42 @@ const Index = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<MedicineInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleStartScan = () => {
     setShowCamera(true);
+    setError(null);
   };
 
   const handleCapture = async (imageData: string) => {
     setCapturedImage(imageData);
     setAnalyzing(true);
+    setError(null);
     
     try {
-      // Step 1: Extract text using OCR
-      const extractedText = await recognizeText(imageData);
+      // Analyze the medicine image using Gemini
+      const analysisResult = await analyzeMedicineImage(imageData);
       
-      if (!extractedText) {
+      if (!analysisResult.success) {
+        setError(analysisResult.message);
         toast({
-          title: "OCR Failed",
-          description: "Couldn't extract text from the image. Please try again with better lighting.",
+          title: "Analysis Failed",
+          description: analysisResult.message,
           variant: "destructive",
         });
-        setAnalyzing(false);
-        return;
-      }
-      
-      // Step 2: Analyze the extracted text using LLM
-      const medicineInfo = await analyzeMedicineText(extractedText);
-      
-      if (!medicineInfo) {
-        // Fallback to mock data if LLM analysis fails
-        const mockResult: MedicineInfo = {
-          name: "Acetaminophen 500mg",
-          description: "Pain reliever and fever reducer for temporary relief of minor aches and pains.",
-          ingredients: [
-            "Acetaminophen 500mg (active ingredient)",
-            "Corn starch",
-            "Hypromellose",
-            "Povidone",
-            "Stearic acid"
-          ],
-          price: "$8.99 - $12.49",
-          availability: "Available in most pharmacies",
-          precautions: [
-            "Do not use with other medicines containing acetaminophen",
-            "Do not take more than directed (max 4000mg daily)",
-            "Alcohol warning: May cause liver damage",
-            "Consult a doctor if symptoms persist"
-          ],
-          alternatives: [
-            "Ibuprofen 200mg",
-            "Aspirin 325mg",
-            "Naproxen Sodium 220mg"
-          ]
-        };
-        
-        setResult(mockResult);
-        toast({
-          title: "Analysis Complete (Mock Data)",
-          description: "We couldn't analyze the medicine. Showing mock data instead.",
-        });
-      } else {
-        setResult(medicineInfo);
+      } else if (analysisResult.data) {
+        setResult(analysisResult.data);
         toast({
           title: "Analysis Complete",
           description: "We've identified your medicine.",
         });
         
         // Save to Supabase if analysis was successful
-        await saveMedicineData(medicineInfo);
+        await saveMedicineData(analysisResult.data);
       }
     } catch (error) {
       console.error("Error in scanning process:", error);
+      setError("An unexpected error occurred. Please try again.");
       toast({
         title: "Error",
         description: "An error occurred during scanning. Please try again.",
@@ -101,6 +67,7 @@ const Index = () => {
     setShowCamera(false);
     setCapturedImage(null);
     setResult(null);
+    setError(null);
   };
 
   return (
@@ -157,6 +124,13 @@ const Index = () => {
                     Position medicine packaging with clear view of label
                   </p>
                 </div>
+                
+                {error && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertTitle>Image Analysis Error</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
                 
                 <Camera onCapture={handleCapture} />
                 
