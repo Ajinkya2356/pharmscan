@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import Camera from '@/components/Camera';
@@ -6,7 +5,7 @@ import MedicineResult, { MedicineInfo } from '@/components/MedicineResult';
 import ScanButton from '@/components/ScanButton';
 import AnimatedTransition from '@/components/AnimatedTransition';
 import Header from '@/components/Header';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Pill } from 'lucide-react';
 
 const Index = () => {
   const { toast } = useToast();
